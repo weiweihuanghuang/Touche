@@ -1,8 +1,8 @@
 # coding=utf-8
 
 from Touche import Touche
-
-from vanilla import CheckBox, Group, List, ProgressSpinner, SquareButton, TextBox, FloatingWindow
+from Foundation import NSUserDefaults
+from vanilla import CheckBox, Group, List, ProgressSpinner, Button, TextBox, FloatingWindow
 # from mojo.UI import MultiLineView, OpenSpaceCenter
 # from mojo.roboFont import OpenWindow, CurrentFont
 from robofab.world import CurrentFont
@@ -13,7 +13,15 @@ import time
 class ToucheTool():
     
     def __init__(self):
-        self.w = FloatingWindow((180, 340), u'Touché!', minSize=(180,340), maxSize=(1000,898))
+        NSUserDefaults.standardUserDefaults().registerDefaults_({"ToucheWindowHeight":340})
+        self.windowHeight = NSUserDefaults.standardUserDefaults().integerForKey_("ToucheWindowHeight")
+        self.minWindowHeight = 340
+        if self.windowHeight < self.minWindowHeight:
+            self.windowHeight = self.minWindowHeight
+        self.closedWindowHeight = 100
+        self.w = FloatingWindow((180, self.windowHeight), u'Touché!', minSize=(180,340), maxSize=(250,898))
+        self.w.bind("resize", self.windowResized)
+        self.isResizing = False
         p = 10
         w = 160
         
@@ -21,36 +29,29 @@ class ToucheTool():
         self.w.options = Group((0, 0, 180, 220))
         
         buttons = {
-            "checkSelBtn": {"text": "Check selected glyphs\nfor touching pairs", "callback": self.checkSel, "y": p}, 
-            "checkAllBtn": {"text": "Check entire font\n(can take several minutes!)", "callback": self.checkAll, "y": 60}}            
+            "checkSelBtn": {"text": "Check selected glyphs", "callback": self.checkSel, "y": p},
+        }
         for button, data in buttons.iteritems():
             setattr(self.w.options, button, 
-            SquareButton((p, data["y"], w, 40), data["text"], callback=data["callback"], sizeStyle="small"))
+            Button((p, data["y"], w - 22, 22), data["text"], callback=data["callback"], sizeStyle="small"))
             
-        self.w.options.zeroCheck = CheckBox((p, 108, w, 20), "Ignore zero-width glyphs", value=True, sizeStyle="small")
-        self.w.options.progress = ProgressSpinner((82, 174, 16, 16), sizeStyle="small")
+        self.w.options.zeroCheck = CheckBox((p, 35, w, 20), "Ignore zero-width glyphs", value=True, sizeStyle="small")
+        self.w.options.progress = ProgressSpinner((w - 8, 13, 16, 16), sizeStyle="small")
         
         # results
         self.w.results = Group((0, 220, 180, -0))
         self.w.results.show(False)
         
-        textBoxes = {"stats": 24, "result": 42} 
+        textBoxes = {"stats": -34, "result": -18}
         for box, y in textBoxes.iteritems():
             setattr(self.w.results, box, TextBox((p, y, w, 14), "", sizeStyle="small"))
             
-        moreButtons = {
-            "spaceView": {"text": "View all in Space Center", "callback": self.showAllPairs, "y": 65}, 
-            "exportTxt": {"text": "Export as MM pair list", "callback": self.exportPairList, "y": 90}} 
-        for button, data in moreButtons.iteritems():
-            setattr(self.w.results, button, 
-            SquareButton((p, data["y"], w, 20), data["text"], callback=data["callback"], sizeStyle="small"))
-        
         # list and preview 
-        self.w.outputList = List((180,0,188,-0), 
+        self.w.outputList = List((0,58,-0,-40),
             [{"left glyph": "", "right glyph": ""}], columnDescriptions=[{"title": "left glyph"}, {"title": "right glyph"}],
-            showColumnTitles=False, allowsMultipleSelection=False, enableDelete=False, selectionCallback=self.showPair)           
-        # self.w.preview = MultiLineView((368, 0, -0, -0), pointSize=256)
+            showColumnTitles=False, allowsMultipleSelection=False, enableDelete=False, selectionCallback=self.showPair)
         
+        self._resizeWindow(False)
         self.w.open()
     
     
@@ -63,37 +64,45 @@ class ToucheTool():
         self.check(useSelection=True)
         
     def check(self, useSelection):
-        self.w.results.show(False)
         self._resizeWindow(enlarge=False)
         self.checkFont(useSelection=useSelection, excludeZeroWidth=self.w.options.zeroCheck.get())
-        
+    
     def showPair(self, sender=None):
         try:
             index = sender.getSelection()[0]
             glyphs = [self.f[gName] for gName in self.touchingPairs[index]]
+            ActiveFont = self.f._object.font
+            WindowController = self.f._object.windowController()
+            EditViewController = WindowController.activeEditViewController()
+            if EditViewController is None:
+                from PyObjCTools.AppHelper import callAfter
+                tabText = "/%s/%s" %(glyphs[0].name, glyphs[1].name)
+                callAfter(WindowController.addTabWithString_, tabText)
+            else:
+                LeftChar = ActiveFont.characterForGlyph_(glyphs[0]._object)
+                RightChar = ActiveFont.characterForGlyph_(glyphs[1]._object)
+                if LeftChar != 0 and RightChar != 0:
+                    selection = EditViewController.graphicView().textStorage().selectedRange()
+                    if selection.length < 2:
+                        selection.length = 2
+                        if selection.location > 0:
+                            selection.location -= 1
+                    
+                    NewString = ""
+                    if LeftChar < 0xffff and RightChar < 0xffff:
+                        NewString = "%c%c" % (LeftChar, RightChar)
+                    else:
+                        print "Upper plane codes are not supported yet"
+                    
+                    EditViewController.graphicView().textStorage().replaceCharactersInRange_withString_(selection, NewString)
+                    selection.length = 0
+                    selection.location += 1
+                    EditViewController.graphicView().textStorage().setSelectedRange_(selection)
             #self.w.preview.set(glyphs)
         except IndexError:
             pass
-            
-    def showAllPairs(self, sender=None):
-        # open all resulting pairs in Space Center
-        rawString = ""
-        for g1, g2 in self.touchingPairs:
-            rawString += "/%s/%s/space" % (g1, g2)
-        s = OpenSpaceCenter(self.f)
-        s.setRaw(rawString)
-        
-    def exportPairList(self, sender=None):
-        # Save the list of found touching pairs in a text file which can be read by MetricsMachine as a pair list
-        path = PutFile("Choose save location", "TouchingPairs.txt")
-        if path is not None:
-            reportString = "#KPL:P: TouchingPairs\n"
-            for g1, g2 in self.touchingPairs:
-                reportString += "%s %s\n" % (g1, g2)
-            fi = open(path,'w+')
-            fi.write(reportString)
-            fi.close()  
-            
+    
+                
     # checking
         
     def _hasSufficientWidth(self, g):
@@ -111,10 +120,31 @@ class ToucheTool():
                 newGlyphList.append(g)
         return newGlyphList
         
+        
+    def windowResized(self, window):
+        posSize = self.w.getPosSize()
+        Height = posSize[3]
+        if Height > self.closedWindowHeight and self.isResizing is False:
+            print "set new Height", Height
+            NSUserDefaults.standardUserDefaults().setInteger_forKey_(Height, "ToucheWindowHeight")
+            self.windowHeight = Height
+    
     def _resizeWindow(self, enlarge=True):
         posSize = self.w.getPosSize()
-        targetWidth = 700 if enlarge else 180
-        self.w.setPosSize((posSize[0], posSize[1], targetWidth, posSize[3]))
+        if enlarge:
+            self.w.results.show(True)
+            self.w.outputList.show(True)
+            targetHeight = self.windowHeight
+            if targetHeight < 340:
+                targetHeight = 340
+        else:
+            self.w.results.show(False)
+            self.w.outputList.show(False)
+            targetHeight = self.closedWindowHeight
+        print "_resizeWindow", enlarge, targetHeight
+        self.isResizing = True
+        self.w.setPosSize((posSize[0], posSize[1], posSize[2], targetHeight))
+        self.isResizing = False
     
     # ok let's do this
 
@@ -142,12 +172,7 @@ class ToucheTool():
             self.w.outputList.set(outputList)
             if len(self.touchingPairs) > 0:
                 self.w.outputList.setSelection([0])
-            # else:
-            #     self.w.preview.set("")
             
-            outputButtons = [self.w.results.spaceView, self.w.results.exportTxt]
-            for b in outputButtons:
-                b.enable(False) if len(self.touchingPairs) == 0 else b.enable(True)
             #self.w.preview.setFont(f)
             self.w.options.progress.stop()
             self._resizeWindow(enlarge=True)
