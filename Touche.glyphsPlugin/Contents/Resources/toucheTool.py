@@ -6,6 +6,7 @@ from vanilla import CheckBox, Group, List, ProgressSpinner, Button, TextBox, Flo
 # from mojo.UI import MultiLineView, OpenSpaceCenter
 # from mojo.roboFont import OpenWindow, CurrentFont
 from robofab.world import CurrentFont
+from GlyphsApp import *
 from robofab.interface.all.dialogs import PutFile, Message
 import time
 
@@ -71,13 +72,11 @@ class ToucheTool():
         try:
             index = sender.getSelection()[0]
             glyphs = [self.f[gName] for gName in self.touchingPairs[index]]
-            ActiveFont = self.f._object.font
-            WindowController = self.f._object.windowController()
-            EditViewController = WindowController.activeEditViewController()
+            ActiveFont = self.f._font
+            EditViewController = ActiveFont.currentTab
             if EditViewController is None:
-                from PyObjCTools.AppHelper import callAfter
                 tabText = "/%s/%s" %(glyphs[0].name, glyphs[1].name)
-                callAfter(WindowController.addTabWithString_, tabText)
+                ActiveFont.newTab(tabText)
             else:
                 LeftChar = ActiveFont.characterForGlyph_(glyphs[0]._object)
                 RightChar = ActiveFont.characterForGlyph_(glyphs[1]._object)
@@ -155,7 +154,7 @@ class ToucheTool():
             self.w.options.progress.start()
             time0 = time.time()
             self.excludeZeroWidth = excludeZeroWidth
-            self.f = f 
+            self.f = f
     
             glyphNames = f.selection if useSelection else f.keys()
             glyphList = [f[x] for x in glyphNames]
