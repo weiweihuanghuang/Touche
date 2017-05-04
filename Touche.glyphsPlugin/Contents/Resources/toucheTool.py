@@ -89,7 +89,7 @@ class ToucheTool():
                     
                     NewString = ""
                     if LeftChar < 0xffff and RightChar < 0xffff:
-                        NewString = "%c%c" % (LeftChar, RightChar)
+                        NewString = u"%s%s" % (unichr(LeftChar), unichr(RightChar))
                     else:
                         print "Upper plane codes are not supported yet"
                     
