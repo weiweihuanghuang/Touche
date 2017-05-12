@@ -108,7 +108,7 @@ class ToucheTool():
         # to ignore combining accents and the like
         if self.excludeZeroWidth:
             # also skips 1-unit wide glyphs which many use instead of 0
-            if g.width < 2:
+            if g.width < 2 or g._object.subCategory == "Nonspacing":
                 return False
         return True
         
