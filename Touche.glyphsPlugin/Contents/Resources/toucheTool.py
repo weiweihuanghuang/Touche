@@ -49,9 +49,9 @@ class ToucheTool():
             
         # list and preview 
         self.w.outputList = List((0,58,-0,-40),
-            [{"left glyph": "", "right glyph": ""}], columnDescriptions=[{"title": "left glyph"}, {"title": "right glyph"}],
+            [{"left glyph": "", "right glyph": ""}], columnDescriptions=[{"title": "left glyph", "width": 90}, {"title": "right glyph"}],
             showColumnTitles=False, allowsMultipleSelection=False, enableDelete=False, selectionCallback=self.showPair)
-        
+        self.w.outputList._setColumnAutoresizing()
         self._resizeWindow(False)
         self.w.open()
     
