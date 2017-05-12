@@ -1,7 +1,8 @@
 # coding=utf-8
 
-import findPossibleOverlappingSegmentsPen
-reload(findPossibleOverlappingSegmentsPen)
+import SegmentsPen
+reload(SegmentsPen)
+from fontTools.misc.arrayTools import pointInRect
 
 from fontTools.misc.arrayTools import offsetRect, sectRect
 from Foundation import *
@@ -12,6 +13,16 @@ f = open(_path)
 objc.parseBridgeSupport(f.read(), globals(), _path)
 f.close()
 
+def segmentInBound(segment, bounds):
+    minX, minY, maxX, maxY = bounds
+    for point in segment:
+        if pointInRect(point, bounds):
+            return True
+        found = minX <= point[0] <= maxX
+        if found:
+            return True
+    return False
+    
 class Touche(object):
     """Checks a font for touching glyphs.
     
@@ -26,6 +37,7 @@ class Touche(object):
 
     def __init__(self, font):
         self.font = font
+        self.penCache = {}
         #self.flatKerning = font.naked().flatKerning
 
     def findTouchingPairs(self, glyphs):
@@ -51,7 +63,6 @@ class Touche(object):
 
         Returns a Boolean if overlapping.
         """
-
         kern = g1._layer.rightKerningForLayer_(g2._layer)
         if kern > 10000:
             kern = 0
@@ -65,28 +76,39 @@ class Touche(object):
             return False
         bounds2 = g2.box
         if bounds2 is None:
-            return False    
+            return False
 
-        # shift bounds2
         bounds2 = offsetRect(bounds2, g1.width+kern, 0)
         # check for intersection bounds
         intersectingBounds, _ = sectRect(bounds1, bounds2)
         if not intersectingBounds:
             return False
-        # move bounds1 back, moving bounds is faster then moving all coordinates in a glyph
-        bounds1 = offsetRect(bounds1, -g2.width-kern, 0)
 
         # create a pen for g1 with a shifted rect, draw the glyph into the pen
-        pen1 = findPossibleOverlappingSegmentsPen.FindPossibleOverlappingSegmentsPen(self.font, bounds2)
-        g1.draw(pen1)
-
+        pen1 = self.penCache.get(g1.name, None)
+        if not pen1:
+            pen1 = SegmentsPen.SegmentsPen(self.font)
+            g1.draw(pen1)
+            self.penCache[g1.name] = pen1
+        
         # create a pen for g2 with a shifted rect and move each found segment with the width and kerning
-        pen2 = findPossibleOverlappingSegmentsPen.FindPossibleOverlappingSegmentsPen(self.font, bounds1, (g1.width+kern, 0))
-        # draw the glyph into the pen
-        g2.draw(pen2)
-
+        
+        pen2 = self.penCache.get(g2.name, None)
+        if not pen2:
+            pen2 = SegmentsPen.SegmentsPen(self.font)
+            g2.draw(pen2)
+            self.penCache[g2.name] = pen2
+        
+        offset = g1.width+kern
+        
         for segment1 in pen1.segments:
+            if not segmentInBound(segment1, bounds2):
+                continue
+            
             for segment2 in pen2.segments:
+                segment2 = [(p[0] + offset, p[1]) for p in segment2]
+                if not segmentInBound(segment2, bounds1):
+                    continue
                 if len(segment1) == 4 and len(segment2) == 4:
                     a1, a2, a3, a4 = segment1
                     b1, b2, b3, b4 = segment2
