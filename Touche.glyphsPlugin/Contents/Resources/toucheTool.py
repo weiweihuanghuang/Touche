@@ -3,13 +3,10 @@
 from Touche import Touche
 from Foundation import NSUserDefaults
 from vanilla import CheckBox, Group, List, ProgressSpinner, Button, TextBox, FloatingWindow
-# from mojo.UI import MultiLineView, OpenSpaceCenter
-# from mojo.roboFont import OpenWindow, CurrentFont
 from robofab.world import CurrentFont
 from GlyphsApp import *
 from robofab.interface.all.dialogs import PutFile, Message
 import time
-
 
 class ToucheTool():
     
@@ -111,15 +108,14 @@ class ToucheTool():
             if g.width < 2 or g._object.subCategory == "Nonspacing":
                 return False
         return True
-        
+    
     def _trimGlyphList(self, glyphList):
         newGlyphList = []
         for g in glyphList:
             if g.box is not None and self._hasSufficientWidth(g):
                 newGlyphList.append(g)
         return newGlyphList
-        
-        
+    
     def windowResized(self, window):
         posSize = self.w.getPosSize()
         Height = posSize[3]
@@ -140,7 +136,6 @@ class ToucheTool():
             self.w.results.show(False)
             self.w.outputList.show(False)
             targetHeight = self.closedWindowHeight
-        print "_resizeWindow", enlarge, targetHeight
         self.isResizing = True
         self.w.setPosSize((posSize[0], posSize[1], posSize[2], targetHeight))
         self.isResizing = False
