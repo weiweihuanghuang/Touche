@@ -75,10 +75,13 @@ class ToucheTool():
                 tabText = "/%s/%s" %(glyphs[0].name, glyphs[1].name)
                 ActiveFont.newTab(tabText)
             else:
+                textStorage = EditViewController.graphicView()
+                if not hasattr(textStorage, "replaceCharactersInRange_withString_"): # compatibility with API change in 2.5
+                    textStorage = EditViewController.graphicView().textStorage()
                 LeftChar = ActiveFont.characterForGlyph_(glyphs[0]._object)
                 RightChar = ActiveFont.characterForGlyph_(glyphs[1]._object)
                 if LeftChar != 0 and RightChar != 0:
-                    selection = EditViewController.graphicView().textStorage().selectedRange()
+                    selection = textStorage.selectedRange()
                     if selection.length < 2:
                         selection.length = 2
                         if selection.location > 0:
@@ -90,10 +93,10 @@ class ToucheTool():
                     else:
                         print "Upper plane codes are not supported yet"
                     
-                    EditViewController.graphicView().textStorage().replaceCharactersInRange_withString_(selection, NewString)
+                    textStorage.replaceCharactersInRange_withString_(selection, NewString)
                     selection.length = 0
                     selection.location += 1
-                    EditViewController.graphicView().textStorage().setSelectedRange_(selection)
+                    textStorage.setSelectedRange_(selection)
             #self.w.preview.set(glyphs)
         except IndexError:
             pass
