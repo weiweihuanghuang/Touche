@@ -5,8 +5,8 @@ reload(SegmentsPen)
 from fontTools.misc.arrayTools import pointInRect
 
 from fontTools.misc.arrayTools import offsetRect, sectRect
-from Foundation import *
-from AppKit import *
+from Foundation import NSBundle
+import objc
 _path = NSBundle.mainBundle().bundlePath()
 _path = _path+"/Contents/Frameworks/GlyphsCore.framework/Versions/A/Resources/BridgeSupport/GlyphsCore.bridgesupport"
 f = open(_path)
