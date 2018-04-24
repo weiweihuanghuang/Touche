@@ -1,12 +1,9 @@
-#!/usr/bin/env python
 # encoding: utf-8
 
 
-import time, traceback
-
+import objc, time, traceback
+from GlyphsApp import *
 from GlyphsApp.plugins import *
-
-#import GlyphsApp
 from toucheTool import ToucheTool
 
 class TouchePlugin (GeneralPlugin):
