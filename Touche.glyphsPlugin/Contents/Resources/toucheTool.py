@@ -142,7 +142,7 @@ class ToucheTool():
         self.isResizing = True
         self.w.setPosSize((posSize[0], posSize[1], posSize[2], targetHeight))
         self.isResizing = False
-    
+
     # ok let's do this
 
     def checkFont(self, useSelection=False, excludeZeroWidth=True):
@@ -166,9 +166,20 @@ class ToucheTool():
             self.w.results.show(True)
             
             outputList = [{"left glyph": g1, "right glyph": g2} for (g1, g2) in self.touchingPairs]
+
+            outputStringList = [ "/%s/%s  " % (g1, g2) for (g1, g2) in self.touchingPairs ]
+            outputStringMetalist = [outputStringList[i:i + 400] for i in range(0, len(outputStringList), 400)]
+
+            ActiveFont = self.f._font
+            ActiveFont.disableUpdateInterface()
+            for eachList in outputStringMetalist:
+                outputString = "".join(eachList)
+                ActiveFont.newTab(outputString)
+
             self.w.outputList.set(outputList)
             if len(self.touchingPairs) > 0:
                 self.w.outputList.setSelection([0])
+            ActiveFont.enableUpdateInterface()
             
             #self.w.preview.setFont(f)
             self.w.options.progress.stop()
